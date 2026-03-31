@@ -34,7 +34,7 @@ export function StatsCard({
           <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
         </div>
         {Icon && (
-          <div className="rounded-md bg-muted p-2 text-muted-foreground">
+          <div className="rounded-md bg-primary/10 p-2 text-primary">
             <Icon className="size-4" aria-hidden />
           </div>
         )}

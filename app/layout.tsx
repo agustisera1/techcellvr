@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 
@@ -12,14 +12,22 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Techcell",
-  description: "Aplicación Next.js con autenticación Supabase",
+  title: "Techcell — Panel de administración",
+  description: "Gestión de stock, pedidos y catálogo de Techcell.",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-sans",
   display: "swap",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const spaceMono = Space_Mono({
+  variable: "--font-mono",
+  display: "swap",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export default function RootLayout({
@@ -29,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${spaceMono.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
