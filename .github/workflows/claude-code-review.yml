@@ -1,14 +1,11 @@
 name: Claude Code Review
 
+# Triggers disabled temporarily to avoid token consumption.
+# To re-enable, restore the original `on:` block below.
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  workflow_dispatch:
+  # pull_request:
+  #   types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
   claude-review:

@@ -1,14 +1,17 @@
 name: Claude Code
 
+# Triggers disabled temporarily to avoid token consumption.
+# To re-enable, restore the original `on:` block below.
 on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  issues:
-    types: [opened, assigned]
-  pull_request_review:
-    types: [submitted]
+  workflow_dispatch:
+  # issue_comment:
+  #   types: [created]
+  # pull_request_review_comment:
+  #   types: [created]
+  # issues:
+  #   types: [opened, assigned]
+  # pull_request_review:
+  #   types: [submitted]
 
 jobs:
   claude:
