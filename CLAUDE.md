@@ -1,6 +1,16 @@
 # CLAUDE.md
 
-Contexto completo del proyecto en `PROJECT_CONTEXT.md`. Leerlo antes de cualquier tarea.
+## Archivos de contexto obligatorio
+
+Leer siempre antes de cualquier tarea. Son la fuente de verdad del proyecto:
+
+| Archivo | Cuándo leer | Contenido |
+|---------|-------------|-----------|
+| `ANEXO_CTX.md` | Features nuevas, cambios de schema, flujos de negocio | Modelo de datos, arquitectura de módulos, diagramas de flujo |
+| `COMPONENTS-MVP.md` | Cualquier trabajo sobre componentes | Inventario de componentes, estado de implementación, responsabilidades |
+| `development_plan.md` | Al iniciar o retomar una feature | Roadmap secuencial, dependencias entre features, criterios de completitud |
+| `decisions.md` | Cuando una decisión técnica no sea obvia | ADRs: por qué se eligió cada enfoque y sus consecuencias |
+| `api-contracts.md` | Al implementar Route Handlers o el checkout | Contratos de request/response de cada endpoint |
 
 ## Stack
 
@@ -8,9 +18,9 @@ Next.js 14 App Router · TypeScript · Supabase · Tailwind · shadcn/ui · TanS
 
 ## Reglas absolutas
 
-- **Nunca** importar `src/lib/supabase/admin.ts` en Client Components. Solo en Server Actions y Route Handlers.
+- **Nunca** importar `lib/supabase/admin.ts` en Client Components. Solo en Server Actions y Route Handlers.
 - **Nunca** usar `SUPABASE_SERVICE_ROLE_KEY` con prefijo `NEXT_PUBLIC_`.
-- **Nunca** modificar archivos en `src/components/ui/` directamente — son primitivos de shadcn.
+- **Nunca** modificar archivos en `components/ui/` directamente — son primitivos de shadcn.
 - **Nunca** hacer fetch a Supabase desde el cliente en rutas ISR del catálogo, excepto `ProductSearchBar`.
 - El stock se descuenta **solo** cuando `payment_status = 'paid'` (webhook MP). No al confirmar el pedido.
 - Los pedidos por WhatsApp: primero POST a `/api/orders`, luego abrir `wa.me`. Nunca al revés.
@@ -38,15 +48,15 @@ import { createAdminClient } from '@/lib/supabase/admin' // Bypass RLS — solo 
 ## Convenciones de código
 
 - Server Components por defecto. Agregar `'use client'` solo cuando sea necesario.
-- Server Actions en `src/app/admin/*/actions.ts` — nunca en Route Handlers para mutaciones del admin.
-- Validar inputs con Zod antes de cualquier operación en DB. Schemas en `src/lib/validations/`.
-- Tipos de DB generados automáticamente en `src/lib/database.types.ts`. Regenerar con:
+- Server Actions en `app/admin/*/actions.ts` — nunca en Route Handlers para mutaciones del admin.
+- Validar inputs con Zod antes de cualquier operación en DB. Schemas en `lib/validations/`.
+- Tipos de DB generados automáticamente en `lib/database.types.ts`. Regenerar con:
   ```bash
-  npx supabase gen types typescript --project-id <id> > src/lib/database.types.ts
+  npx supabase gen types typescript --project-id <id> > lib/database.types.ts
   ```
-- Slugs generados desde el nombre del producto via `src/lib/utils/slug.ts`.
-- Links de WhatsApp construidos via `src/lib/utils/whatsapp.ts`.
-- Formatters de precio y fecha en `src/lib/utils/format.ts`. Moneda: ARS.
+- Slugs generados desde el nombre del producto via `lib/utils/slug.ts`.
+- Links de WhatsApp construidos via `lib/utils/whatsapp.ts`.
+- Formatters de precio y fecha en `lib/utils/format.ts`. Moneda: ARS.
 - Imports siempre con alias `@/*`. Nunca rutas relativas que suban más de un nivel (`../../`).
 
 ### TypeScript clean code
@@ -64,7 +74,7 @@ import { createAdminClient } from '@/lib/supabase/admin' // Bypass RLS — solo 
 | Elemento | Convención | Ejemplo |
 |----------|-----------|---------|
 | Componentes | PascalCase `.tsx` | `ProductsTable.tsx` |
-| Server Actions | kebab-case `actions.ts` | `src/app/admin/products/actions.ts` |
+| Server Actions | kebab-case `actions.ts` | `app/admin/products/actions.ts` |
 | Servicios | kebab-case `-service.ts` | `products-service.ts` |
 | Stores Zustand | kebab-case `-store.ts` | `cart-store.ts` |
 | Tipos/validaciones | kebab-case `.ts` | `products.ts` |
@@ -72,8 +82,8 @@ import { createAdminClient } from '@/lib/supabase/admin' // Bypass RLS — solo 
 
 ### Co-ubicación de componentes
 
-- Componentes usados solo por una ruta → `src/app/admin/<dominio>/_components/NombreComponente.tsx`. No importar desde fuera.
-- Componentes compartidos entre múltiples rutas → `src/components/shared/`.
+- Componentes usados solo por una ruta → `app/admin/<dominio>/_components/NombreComponente.tsx`. No importar desde fuera.
+- Componentes compartidos entre múltiples rutas → `components/shared/`.
 
 ### Server Components — patrones
 
@@ -111,7 +121,7 @@ async function ProductsContent() {
 
 Acompañar cada `<Suspense>` con un `error.tsx` en la misma ruta para capturar errores del fetch y mostrar feedback al usuario en vez de romper la página entera.
 
-### Servicios (`src/lib/`)
+### Servicios (`lib/`)
 
 - Una función exportada por operación: `getProducts()`, `createProduct()`, etc.
 - **Nunca usar `.select('*')`** — listar explícitamente las columnas necesarias.
@@ -153,7 +163,7 @@ export async function getProduct(id: string): Promise<ProductDetail | null> {
 
 ### Server Actions — tipo de retorno estándar
 
-Todas las Server Actions retornan `ActionResult<T>`. Definido en `src/lib/types/actions.ts`:
+Todas las Server Actions retornan `ActionResult<T>`. Definido en `lib/types/actions.ts`:
 
 ```ts
 export type ActionResult<T = void> =
@@ -168,11 +178,11 @@ Esto unifica el manejo de errores en formularios y evita `try/catch` disperso en
 - Validar todo input con Zod antes de llamar cualquier servicio — los Route Handlers son el boundary del sistema.
 - Retornar envelope JSON consistente: `{ data: T }` en éxito, `{ error: string }` en fallo.
 - Códigos HTTP correctos: `400` input inválido, `401` no autenticado, `403` no autorizado, `404` no encontrado, `500` error inesperado.
-- Delegar toda lógica de negocio a servicios en `src/lib/` — los handlers solo coordinan.
+- Delegar toda lógica de negocio a servicios en `lib/` — los handlers solo coordinan.
 
 ## Componentes
 
-- `DataTable` en `src/components/shared/DataTable.tsx` es el wrapper genérico de TanStack Table. Usarlo como base para todas las tablas del admin.
+- `DataTable` en `components/shared/DataTable.tsx` es el wrapper genérico de TanStack Table. Usarlo como base para todas las tablas del admin.
 - `StatusBadge` mapea estados de orders/payments a colores semánticos.
 - `ImageUploader` comprime imágenes a ~200-300 KB antes de subir a Supabase Storage bucket `product-images`.
 - `OrdersRealtimeListener` se monta en `AdminLayout` — suscribe a INSERT en `orders` y dispara toast.
@@ -210,7 +220,7 @@ where to_tsvector('spanish',
 
 ## Estado global (Zustand)
 
-Zustand store del carrito en `src/lib/store/cart.ts`. Persiste en `sessionStorage` (no localStorage — se limpia al cerrar el tab, comportamiento esperado para un e-commerce).
+Zustand store del carrito en `lib/store/cart.ts`. Persiste en `sessionStorage` (no localStorage — se limpia al cerrar el tab, comportamiento esperado para un e-commerce).
 
 Reglas para todos los stores:
 - Un store por dominio funcional. Evitar stores monolíticos.
@@ -231,7 +241,7 @@ Reglas para todos los stores:
 
 ## RLS actual
 
-Development: policies `dev: full access` en todas las tablas (`using (true)`). Reemplazar por policies estrictas antes de producción. Ver `PROJECT_CONTEXT.md` para el detalle de policies de producción.
+Development: policies `dev: full access` en todas las tablas (`using (true)`). Reemplazar por policies estrictas antes de producción. Ver `ANEXO_CTX.md` para el detalle de policies de producción.
 
 ## Migraciones
 

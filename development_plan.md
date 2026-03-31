@@ -16,10 +16,11 @@
 - Primitivos shadcn/ui instalados
 - Schema SQL definido en `DB.sql` (no migrado)
 - Mocks con tipos TypeScript
+- Design system "Ember": paleta naranja, Space Grotesk, tokens de color light/dark (`design/theme` ✓)
 
 **Sin implementar:**
 - Middleware de proteccion de rutas admin
-- Migraciones Supabase
+- Migraciones Supabase y seed de categorias
 - Tipos generados de DB
 - Capa de servicios
 - Server Actions
@@ -29,6 +30,8 @@
 - Catalogo publico
 - Carrito y checkout
 - Realtime
+
+> **Categorias:** se gestionan via seed inicial (lista a definir). No hay pagina de admin para categorias en el MVP.
 
 ---
 
@@ -41,14 +44,14 @@ Crear la infraestructura de base de datos que todo lo demas necesita.
 | Tarea | Detalle |
 |-------|---------|
 | Migraciones SQL | Crear archivos en `supabase/migrations/` a partir de `DB.sql` |
-| Seed data | Script de datos iniciales (categorias base, settings, usuario admin) |
-| Tipos generados | `npx supabase gen types typescript` → `src/lib/database.types.ts` |
-| Admin client | Crear `src/lib/supabase/admin.ts` con `createAdminClient()` |
-| Validaciones base | `src/lib/validations/products.ts`, `orders.ts`, `customers.ts` |
-| ActionResult type | `src/lib/types/actions.ts` con el tipo estandar de retorno |
-| Utilidades pendientes | `src/lib/utils/slug.ts`, `src/lib/utils/whatsapp.ts` |
+| Seed data | Categorias base (lista pendiente), settings iniciales, usuario admin |
+| Tipos generados | `npx supabase gen types typescript` → `lib/database.types.ts` |
+| Admin client | Crear `lib/supabase/admin.ts` con `createAdminClient()` |
+| Validaciones base | `lib/validations/products.ts`, `orders.ts`, `customers.ts` |
+| ActionResult type | `lib/types/actions.ts` con el tipo estandar de retorno |
+| Utilidades pendientes | `lib/utils/slug.ts`, `lib/utils/whatsapp.ts` |
 
-**Criterio de completitud:** `supabase db push` exitoso, tipos generados sin errores, seed ejecutado.
+**Criterio de completitud:** `supabase db push` exitoso, tipos generados sin errores, seed ejecutado con categorias reales.
 
 ---
 
@@ -59,7 +62,7 @@ Proteger las rutas admin y establecer el patron de error boundaries.
 | Tarea | Detalle |
 |-------|---------|
 | `middleware.ts` | Proteger `/admin/*` — redirigir a `/auth/login` si no hay sesion |
-| `getAuthenticatedUser()` | Helper en `src/lib/supabase/get-user.ts` con `React.cache()` |
+| `getAuthenticatedUser()` | Helper en `lib/supabase/get-user.ts` con `React.cache()` |
 | Error boundaries | `error.tsx` en `/admin` y `/admin/[modulo]` |
 | Loading states | `loading.tsx` base para rutas admin |
 
@@ -69,52 +72,35 @@ Proteger las rutas admin y establecer el patron de error boundaries.
 
 ## Fase 2 — Admin Core
 
-### 3. `feature/admin-categories`
+### 3. `feature/admin-products`
 
-Las categorias son FK de productos — necesitan existir primero.
-
-| Tarea | Detalle |
-|-------|---------|
-| Servicio | `src/lib/categories-service.ts` — `getCategories()`, `createCategory()`, `updateCategory()`, `deleteCategory()` |
-| Server Actions | `src/app/admin/categories/actions.ts` |
-| Pagina + tabla | `src/app/admin/categories/page.tsx` con DataTable |
-| Formulario | Drawer (Sheet) para crear/editar categoria |
-| Validacion Zod | `src/lib/validations/categories.ts` |
-| Jerarquia | Soporte para `parent_id` (categorias padre/hijo) |
-
-**Criterio de completitud:** CRUD completo de categorias funcionando con datos reales de Supabase.
-
----
-
-### 4. `feature/admin-products`
-
-El modulo central del negocio. Depende de categorias.
+El modulo central del negocio. Depende de #2.
 
 | Tarea | Detalle |
 |-------|---------|
-| Servicio | `src/lib/products-service.ts` — `getProducts()`, `getProduct()`, `createProduct()`, `updateProduct()`, `toggleProductActive()` |
-| Server Actions | `src/app/admin/products/actions.ts` |
+| Servicio | `lib/products-service.ts` — `getProducts()`, `getProduct()`, `createProduct()`, `updateProduct()`, `toggleProductActive()` |
+| Server Actions | `app/admin/products/actions.ts` |
 | Pagina + tabla | `ProductsTable` con filtros por categoria, estado activo, stock bajo |
-| Formulario | Drawer para crear/editar producto (nombre, SKU, precio, descripcion, categoria, stock inicial) |
-| ImageUploader | Componente de subida con compresion a ~200-300 KB → Supabase Storage `product-images` |
-| Descuentos | `DiscountForm` dentro del detalle del producto |
-| Slug | Auto-generacion desde nombre via `slug.ts` |
-| Price history | Registro automatico en `price_history` cuando cambia el precio |
+| Formulario | `ProductForm` — nombre, slug (auto-generado), descripcion, categoria, precio, `compare_at_price`, stock inicial, umbral minimo, activo, destacado |
+| ImageUploader | Subida con compresion a ~200-300 KB → Supabase Storage `product-images` |
+| Descuentos | `DiscountForm` — porcentaje, motivo, fechas de vigencia opcionales |
+| Slug | Auto-generacion desde nombre via `lib/utils/slug.ts` |
+| Price history | Registro automatico en `price_history` via trigger al cambiar precio |
 
-**Criterio de completitud:** ABM completo de productos con imagenes, descuentos, y historial de precios.
+**Criterio de completitud:** ABM completo de productos con imagenes y descuentos.
 
 ---
 
-### 5. `feature/admin-stock`
+### 4. `feature/admin-stock`
 
-Gestion de inventario. Depende de productos.
+Gestion de inventario. Depende de #3.
 
 | Tarea | Detalle |
 |-------|---------|
-| Servicio | `src/lib/stock-service.ts` — `getStockMovements()`, `adjustStock()`, `getProductStock()` |
-| Server Actions | `src/app/admin/stock/actions.ts` |
+| Servicio | `lib/stock-service.ts` — `getStockMovements()`, `adjustStock()`, `getProductStock()` |
+| Server Actions | `app/admin/stock/actions.ts` |
 | Pagina + tabla | `StockMovementsTable` con filtros por producto, tipo de movimiento, fecha |
-| Formulario | `StockAdjustForm` — ajuste manual con razon obligatoria |
+| Formulario | `StockAdjustForm` — ajuste manual con razon obligatoria, registra en `stock_movements` con tipo `adjustment` |
 | Alerta de stock bajo | Conectar `StockAlertBanner` a datos reales (query `stock <= stock_min_threshold`) |
 | Audit trail | Cada movimiento registra `stock_before`, `stock_after`, `type`, `reason` |
 
@@ -124,54 +110,52 @@ Gestion de inventario. Depende de productos.
 
 ## Fase 3 — Pedidos
 
-### 6. `feature/admin-orders`
+### 5. `feature/admin-orders`
 
-Gestion de pedidos. Depende de productos y clientes.
+Gestion de pedidos. Depende de #3.
 
 | Tarea | Detalle |
 |-------|---------|
-| Servicio | `src/lib/orders-service.ts` — `getOrders()`, `getOrder()`, `updateOrderStatus()` |
-| Servicio clientes | `src/lib/customers-service.ts` — `getCustomer()`, `upsertCustomer()` |
-| Server Actions | `src/app/admin/orders/actions.ts` |
+| Servicio | `lib/orders-service.ts` — `getOrders()`, `getOrder()`, `updateOrderStatus()` |
+| Servicio clientes | `lib/customers-service.ts` — `getCustomer()`, `upsertCustomer()` |
+| Server Actions | `app/admin/orders/actions.ts` |
 | Pagina + tabla | `OrdersTable` con filtros por estado, fecha, metodo de pago |
-| Detalle drawer | `OrderDetailDrawer` — items, cliente, timeline de estados |
+| Detalle drawer | `OrderDetailDrawer` — items con snapshot, datos del cliente, historial de estados |
 | Status updates | `OrderStatusUpdater` — transiciones de estado con validacion |
-| StatusBadge | Conectar a estados reales del enum de ordenes |
-| WhatsApp | `WhatsAppContactButton` — abre chat con el cliente |
+| WhatsApp | `WhatsAppContactButton` — abre chat con mensaje pre-armado con resumen del pedido |
 
 **Criterio de completitud:** Ver, filtrar y gestionar pedidos. Actualizar estados con validacion de transiciones.
 
 ---
 
-### 7. `feature/realtime-notifications`
+### 6. `feature/realtime-notifications`
 
-Notificaciones en tiempo real de nuevos pedidos. Depende de orders.
+Notificaciones en tiempo real de nuevos pedidos. Depende de #5.
 
 | Tarea | Detalle |
 |-------|---------|
 | Listener | `OrdersRealtimeListener` en `AdminLayout` — suscribe a INSERT en `orders` |
 | Toast | Notificacion sonner al recibir nuevo pedido con link al detalle |
-| Sonido | Sonido de notificacion opcional (configurable en settings) |
-| Cleanup | Desuscribir canal al desmontar |
+| Cleanup | Desuscribir canal al desmontar el componente |
 
-**Criterio de completitud:** Al crear un pedido desde el catalogo, el admin recibe toast en tiempo real.
+**Criterio de completitud:** Al crear un pedido desde el catalogo, el admin recibe toast en tiempo real sin refrescar.
 
 ---
 
 ## Fase 4 — Catalogo publico
 
-### 8. `feature/catalog-pages`
+### 7. `feature/catalog-pages`
 
-Paginas publicas del catalogo con ISR. Depende de productos y categorias.
+Paginas publicas del catalogo con ISR. Depende de #3.
 
 | Tarea | Detalle |
 |-------|---------|
-| Layout | `src/app/(catalog)/layout.tsx` con `CatalogNavbar` |
-| Home | `src/app/(catalog)/page.tsx` — productos destacados + categorias |
-| Categoria | `src/app/(catalog)/[category]/page.tsx` — grilla filtrada por categoria |
-| Detalle | `src/app/(catalog)/p/[slug]/page.tsx` — ficha de producto |
+| Layout | `app/(catalog)/layout.tsx` con `CatalogNavbar` |
+| Home | `app/(catalog)/page.tsx` — productos destacados + categorias |
+| Categoria | `app/(catalog)/[category]/page.tsx` — grilla filtrada por categoria |
+| Detalle | `app/(catalog)/p/[slug]/page.tsx` — ficha de producto |
 | Componentes | `ProductGrid`, `ProductCard`, `CategorySidebar`, `BusinessHoursBanner` |
-| Busqueda | `ProductSearchBar` — full-text search con indice GIN |
+| Busqueda | `ProductSearchBar` — full-text search con debounce via fetch nativo (sin TanStack Query) |
 | ISR | `revalidate: 30` en todas las paginas del catalogo |
 | SEO | `generateMetadata()` dinamico para productos y categorias |
 
@@ -179,72 +163,70 @@ Paginas publicas del catalogo con ISR. Depende de productos y categorias.
 
 ---
 
-### 9. `feature/cart-checkout`
+### 8. `feature/cart-checkout`
 
-Carrito y flujo de checkout via WhatsApp. Depende del catalogo.
+Carrito y flujo de checkout via WhatsApp. Depende de #7.
 
 | Tarea | Detalle |
 |-------|---------|
-| Cart store | `src/lib/store/cart.ts` — Zustand con `sessionStorage` |
-| CartDrawer | Sheet lateral con lista de items, cantidades, total |
-| CheckoutForm | Formulario de datos del cliente (nombre, telefono, direccion) |
-| CheckoutSummary | Resumen del pedido antes de confirmar |
-| Route Handler | `POST /api/orders` — crea orden + order_items con snapshot |
-| WhatsApp | `WhatsAppOrderButton` — primero POST, luego abre `wa.me` con mensaje formateado |
-| Validacion | Schema Zod para datos del cliente y items del carrito |
+| Cart store | `lib/store/cart.ts` — Zustand con `sessionStorage` |
+| CartDrawer | Sheet lateral con lista de items, cantidades editables, subtotales |
+| CheckoutForm | Datos del cliente: nombre, telefono, email (opcional), tipo de entrega (envio/retiro), direccion (si aplica). Validado con Zod. |
+| CheckoutSummary | Resumen de items, subtotal, costo de envio y total. Se recalcula al cambiar tipo de entrega. |
+| Route Handler | `POST /api/orders` — crea orden + order_items con snapshot de producto |
+| WhatsApp | `WhatsAppOrderButton` — primero POST a `/api/orders`, si exitoso abre `wa.me`. Nunca al reves. |
 | Stock check | Verificar disponibilidad antes de crear el pedido |
 
-**Criterio de completitud:** Flujo completo: agregar al carrito → checkout → crear orden en DB → abrir WhatsApp.
+**Criterio de completitud:** Flujo completo: agregar al carrito → checkout → orden en DB → abrir WhatsApp.
 
 ---
 
 ## Fase 5 — Dashboard, reportes e infraestructura
 
-### 10. `feature/admin-dashboard`
+### 9. `feature/admin-dashboard`
 
-Reemplazar mocks por datos reales. Depende de que productos, orders y stock existan.
+Reemplazar mocks por datos reales. Depende de #4 y #5.
 
 | Tarea | Detalle |
 |-------|---------|
 | KPIs reales | Ventas del dia, pedidos pendientes, productos activos, stock bajo |
-| StatsCard | Conectar a queries reales |
-| TopProductsTable | Productos mas vendidos (query a order_items) |
-| PendingOrdersWidget | Ultimos pedidos pendientes con acceso rapido |
-| LowStockTable | Productos bajo umbral minimo |
-| Eliminar mocks | Borrar `src/lib/mocks/` al completar la migracion a datos reales |
+| StatsCard | Conectar a queries reales de Supabase |
+| TopProductsTable | Productos mas vendidos (query a `order_items` agrupado por `product_id`) |
+| PendingOrdersWidget | Ultimos pedidos pendientes con acceso rapido al drawer |
+| LowStockTable | Productos bajo umbral minimo con acceso directo a ajuste |
+| Eliminar mocks | Borrar `lib/mocks/` al completar la migracion a datos reales |
 
-**Criterio de completitud:** Dashboard 100% funcional con datos de Supabase. Carpeta mocks eliminada.
+**Criterio de completitud:** Dashboard 100% funcional con datos de Supabase. Carpeta `lib/mocks/` eliminada.
 
 ---
 
-### 11. `feature/admin-reports`
+### 10. `feature/admin-reports`
 
-Reportes basicos del negocio. Depende del dashboard.
+Reportes basicos del negocio. Depende de #9.
 
 | Tarea | Detalle |
 |-------|---------|
 | Ventas por periodo | Tabla con filtro de rango de fechas |
 | Productos mas vendidos | Ranking por cantidad y por monto |
-| Movimientos de stock | Historial filtrable por producto y tipo |
 | Exportar | Boton para descargar como CSV (client-side) |
 
-**Criterio de completitud:** Reportes basicos funcionando con filtros de fecha y exportacion.
+**Criterio de completitud:** Reportes basicos funcionando con filtros de fecha y exportacion CSV.
 
 ---
 
-### 12. `feature/api-infra`
+### 11. `feature/api-infra`
 
-Endpoints de infraestructura y configuracion.
+Endpoints de infraestructura y configuracion. Depende de #8.
 
 | Tarea | Detalle |
 |-------|---------|
-| Revalidation | `POST /api/revalidate` protegido con `REVALIDATE_SECRET` — invalida tags ISR |
-| Healthcheck | `GET /api/healthcheck` — cron cada 3 dias para evitar pausa de Supabase |
-| vercel.json | Configurar cron job para healthcheck |
-| Settings page | `src/app/admin/settings/page.tsx` — nombre del negocio, WhatsApp, horarios |
-| Settings service | `src/lib/settings-service.ts` — CRUD de key-value pairs |
+| Revalidation | `POST /api/revalidate` protegido con `REVALIDATE_SECRET` — invalida tags ISR bajo demanda |
+| Healthcheck | `GET /api/healthcheck` — cron cada 3 dias para evitar pausa de Supabase free tier |
+| vercel.json | Configurar cron job para healthcheck (`0 12 */3 * *`) |
+| Settings page | `app/admin/settings/page.tsx` — nombre del negocio, WhatsApp, horarios de atencion |
+| Settings service | `lib/settings-service.ts` — CRUD de key-value pairs sobre tabla `settings` |
 
-**Criterio de completitud:** Cron configurado, revalidation funcional, settings editables.
+**Criterio de completitud:** Cron configurado en Vercel, revalidation funcional, settings editables desde el panel.
 
 ---
 
@@ -252,29 +234,29 @@ Endpoints de infraestructura y configuracion.
 
 | # | Branch | Depende de | Fase |
 |---|--------|-----------|------|
+| ✓ | `design/theme` | — | Completado |
 | 1 | `feature/database-setup` | — | Fundaciones |
 | 2 | `feature/auth-middleware` | #1 | Fundaciones |
-| 3 | `feature/admin-categories` | #2 | Admin Core |
-| 4 | `feature/admin-products` | #3 | Admin Core |
-| 5 | `feature/admin-stock` | #4 | Admin Core |
-| 6 | `feature/admin-orders` | #4 | Pedidos |
-| 7 | `feature/realtime-notifications` | #6 | Pedidos |
-| 8 | `feature/catalog-pages` | #4 | Catalogo |
-| 9 | `feature/cart-checkout` | #8 | Catalogo |
-| 10 | `feature/admin-dashboard` | #5, #6 | Polish |
-| 11 | `feature/admin-reports` | #10 | Polish |
-| 12 | `feature/api-infra` | #9 | Polish |
+| 3 | `feature/admin-products` | #2 | Admin Core |
+| 4 | `feature/admin-stock` | #3 | Admin Core |
+| 5 | `feature/admin-orders` | #3 | Pedidos |
+| 6 | `feature/realtime-notifications` | #5 | Pedidos |
+| 7 | `feature/catalog-pages` | #3 | Catalogo |
+| 8 | `feature/cart-checkout` | #7 | Catalogo |
+| 9 | `feature/admin-dashboard` | #4, #5 | Polish |
+| 10 | `feature/admin-reports` | #9 | Polish |
+| 11 | `feature/api-infra` | #8 | Polish |
 
 ---
 
 ## Fuera del MVP (v2)
 
-Estas features se planifican despues del MVP funcional:
-
 - `feature/mercadopago` — integracion de pagos online
 - `feature/stock-ai-entry` — ingreso de stock via foto de factura con IA
 - `feature/barcode-scanner` — escaneo de codigo de barras
 - `feature/csv-import` — importacion masiva de productos
+- `feature/admin-categories` — pagina de gestion de categorias en el admin
 - `feature/roles-permissions` — roles adicionales (viewer, manager)
 - `feature/rls-production` — policies RLS estrictas para produccion
 - `feature/tanstack-query` — polling y mutaciones optimisticas client-side
+- `feature/stock-movements-log` — historial completo de movimientos con filtros avanzados

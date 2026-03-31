@@ -22,7 +22,7 @@ El sistema está diseñado para escalar hacia pagos online con MercadoPago en un
 | Estilos | Tailwind CSS |
 | Componentes UI | shadcn/ui |
 | Tablas | TanStack Table v8 |
-| Fetching / cache | TanStack Query v5 |
+| Fetching / cache | fetch nativo (Server Components) |
 | Estado global | Zustand (carrito del catálogo) |
 | Validación | Zod |
 | Pagos (futuro) | MercadoPago Checkout Pro |
@@ -36,14 +36,14 @@ El sistema está diseñado para escalar hacia pagos online con MercadoPago en un
 - Renderizado server-side en cada request
 - Acceso exclusivo con autenticación Supabase Auth
 - Un único usuario administrador (gestionado manualmente en el dashboard de Supabase)
-- Protegido por `src/middleware.ts` que intercepta todas las rutas `/admin/*` y redirige a `/admin/login` si no hay sesión
+- Protegido por `middleware.ts` (raíz del proyecto) que intercepta todas las rutas `/admin/*` y redirige a `/auth/login` si no hay sesión
 
 ### Módulo Catálogo (ISR)
 - Rutas públicas, sin autenticación
 - ISR con `revalidate: 30` segundos
-- Revalidación bajo demanda via `revalidatePath()` al guardar un producto desde el admin
+- Revalidación bajo demanda via `revalidateTag()` al guardar un producto desde el admin
 - Endpoint `/api/revalidate` protegido con `REVALIDATE_SECRET`
-- La búsqueda de productos es la única excepción al ISR: usa TanStack Query client-side con debounce
+- La búsqueda de productos es la única excepción al ISR: `ProductSearchBar` hace fetch client-side con debounce usando la API nativa
 
 ### Estrategia de rendering por ruta
 
@@ -56,9 +56,46 @@ El sistema está diseñado para escalar hacia pagos online con MercadoPago en un
 /admin/*                 → SSR (protegido por middleware)
 /api/orders              → Route Handler (recibe pedidos del catálogo)
 /api/revalidate          → Route Handler (trigger ISR bajo demanda)
-/api/admin/*             → Route Handlers (operaciones del panel)
 /api/webhooks/mp         → Route Handler (webhook MercadoPago, futuro)
 /api/healthcheck         → Route Handler (cron anti-pausa Supabase)
+```
+
+### Diagrama: revalidación ISR bajo demanda
+
+```
+Admin Panel          Server Action        Next.js Cache      CDN Vercel
+     │                    │                    │                  │
+     │── guarda producto ─▶                    │                  │
+     │                    │── UPDATE products ─▶ Supabase         │
+     │                    │── revalidateTag("products") ──────────▶
+     │                    │                    │  cache invalidado │
+     │                    │◀── ok ─────────────│                  │
+     │◀── redirect ───────│                    │                  │
+     │                    │                    │                  │
+     │             próxima visita al catálogo  │                  │
+     │                    │                    │◀── GET / ────────│
+     │                    │                    │── getProducts() ─▶ Supabase
+     │                    │                    │◀── data ─────────│
+     │                    │                    │── regenera HTML ─▶
+     │                    │                    │                  │ (nuevo cache)
+```
+
+### Diagrama: flujo de autenticación admin
+
+```
+Browser             middleware.ts        Supabase Auth
+   │                     │                    │
+   │── GET /admin/* ─────▶                    │
+   │                     │── getSession() ────▶
+   │                     │◀── session | null ─│
+   │                     │                    │
+   │         [sin sesión] │                    │
+   │◀── redirect /auth/login ────────────────│
+   │                     │                    │
+   │         [con sesión] │                    │
+   │◀── 200 (pasa) ──────│                    │
+   │                     │                    │
+   │  (Server Component verifica sesión de nuevo con React.cache())
 ```
 
 ---
@@ -66,24 +103,22 @@ El sistema está diseñado para escalar hacia pagos online con MercadoPago en un
 ## Estructura de carpetas
 
 ```
-src/
 ├── app/
 │   ├── admin/                    ← Módulo Admin (SSR, protegido)
 │   │   ├── layout.tsx            ← AdminLayout: verifica sesión, monta Sidebar + Navbar
 │   │   ├── login/
 │   │   │   └── page.tsx
 │   │   ├── page.tsx              ← Dashboard
-│   │   ├── productos/
+│   │   ├── products/
 │   │   │   ├── page.tsx          ← Lista de productos
-│   │   │   └── [id]/
-│   │   │       └── page.tsx      ← Alta / edición de producto
-│   │   ├── pedidos/
+│   │   │   └── _components/      ← Componentes privados de la ruta
+│   │   ├── orders/
 │   │   │   └── page.tsx
 │   │   ├── stock/
 │   │   │   └── page.tsx
-│   │   ├── reportes/
+│   │   ├── reports/
 │   │   │   └── page.tsx
-│   │   └── configuracion/
+│   │   └── settings/
 │   │       └── page.tsx
 │   ├── (catalog)/                ← Módulo Catálogo (ISR, público)
 │   │   ├── layout.tsx            ← CatalogNavbar + BusinessHoursBanner
@@ -96,11 +131,10 @@ src/
 │   │   └── checkout/
 │   │       └── page.tsx          ← Client Component
 │   └── api/
-│       ├── admin/                ← Endpoints del panel (requieren service_role)
 │       ├── orders/
 │       │   └── route.ts          ← POST: crear pedido desde catálogo
 │       ├── revalidate/
-│       │   └── route.ts          ← POST: trigger revalidación ISR
+│       │   └── route.ts          ← POST: trigger revalidación ISR bajo demanda
 │       ├── healthcheck/
 │       │   └── route.ts          ← GET: ping anti-pausa Supabase
 │       └── webhooks/
@@ -110,65 +144,43 @@ src/
 │   ├── ui/                       ← Primitivos shadcn (nunca modificar directamente)
 │   ├── admin/
 │   │   ├── layout/
-│   │   │   ├── AdminSidebar.tsx
-│   │   │   ├── AdminNavbar.tsx
-│   │   │   └── StockAlertBanner.tsx
-│   │   ├── products/
-│   │   │   ├── ProductsTable.tsx
-│   │   │   ├── ProductForm.tsx
-│   │   │   ├── ProductFilters.tsx
-│   │   │   ├── DiscountForm.tsx
-│   │   │   ├── PriceHistoryDrawer.tsx
-│   │   │   └── StockAdjustForm.tsx
-│   │   ├── orders/
-│   │   │   ├── OrdersTable.tsx
-│   │   │   ├── OrderDetailDrawer.tsx
-│   │   │   ├── OrderStatusUpdater.tsx
-│   │   │   ├── OrderFilters.tsx
-│   │   │   ├── OrdersRealtimeListener.tsx
-│   │   │   └── WhatsAppContactButton.tsx
+│   │   │   ├── admin-sidebar.tsx
+│   │   │   ├── admin-navbar.tsx
+│   │   │   └── stock-alert-banner.tsx
+│   │   ├── products/             ← (por implementar)
+│   │   ├── orders/               ← (por implementar)
 │   │   └── dashboard/
-│   │       ├── StatsCard.tsx
-│   │       ├── TopProductsTable.tsx
-│   │       ├── PendingOrdersWidget.tsx
-│   │       ├── LowStockTable.tsx
-│   │       └── SalesChart.tsx        ← v2
-│   ├── catalog/
-│   │   ├── CatalogNavbar.tsx
-│   │   ├── CategorySidebar.tsx
-│   │   ├── ProductGrid.tsx
-│   │   ├── ProductCard.tsx
-│   │   ├── ProductSearchBar.tsx
-│   │   ├── CartDrawer.tsx
-│   │   ├── CheckoutForm.tsx
-│   │   ├── CheckoutSummary.tsx
-│   │   ├── WhatsAppOrderButton.tsx
-│   │   └── BusinessHoursBanner.tsx
+│   │       ├── stats-card.tsx
+│   │       └── dashboard-overview.tsx
+│   ├── catalog/                  ← (por implementar)
 │   └── shared/
-│       ├── DataTable.tsx             ← Wrapper genérico TanStack Table
-│       ├── ConfirmDialog.tsx
-│       ├── StatusBadge.tsx
-│       ├── ImageUploader.tsx
-│       └── EmptyState.tsx
+│       ├── data-table.tsx        ← Wrapper genérico TanStack Table
+│       ├── confirm-dialog.tsx
+│       ├── status-badge.tsx
+│       ├── image-uploader.tsx    ← (por implementar)
+│       └── empty-state.tsx
 ├── lib/
 │   ├── supabase/
-│   │   ├── server.ts                 ← Cliente SSR (usa cookies, @supabase/ssr)
-│   │   ├── client.ts                 ← Cliente browser (solo Realtime y casos edge)
-│   │   └── admin.ts                  ← Cliente service_role (solo server-side)
-│   ├── database.types.ts             ← Generado: npx supabase gen types typescript
+│   │   ├── server.ts             ← Cliente SSR (usa cookies, @supabase/ssr)
+│   │   ├── client.ts             ← Cliente browser (solo Realtime y casos edge)
+│   │   └── admin.ts              ← Cliente service_role (solo server-side)
+│   ├── database.types.ts         ← Generado: npx supabase gen types typescript
+│   ├── types/
+│   │   └── actions.ts            ← ActionResult<T> tipo estándar de Server Actions
 │   ├── validations/
-│   │   ├── product.ts                ← Zod schemas para productos
-│   │   ├── order.ts                  ← Zod schemas para pedidos
+│   │   ├── products.ts           ← Zod schemas para productos
+│   │   ├── orders.ts             ← Zod schemas para pedidos
 │   │   └── settings.ts
 │   ├── utils/
-│   │   ├── format.ts                 ← Formatters de precio, fecha, etc.
-│   │   ├── slug.ts                   ← Generador de slugs desde nombre
-│   │   └── whatsapp.ts               ← Builder de mensajes wa.me
-│   └── store/
-│       └── cart.ts                   ← Zustand store del carrito
-├── middleware.ts                     ← Protección de rutas /admin/*
+│   │   ├── format.ts             ← Formatters de precio, fecha, etc.
+│   │   ├── slug.ts               ← Generador de slugs desde nombre
+│   │   └── whatsapp.ts           ← Builder de mensajes wa.me
+│   ├── store/
+│   │   └── cart.ts               ← Zustand store del carrito
+│   └── mocks/                    ← Datos mock temporales (eliminar al conectar DB real)
+├── middleware.ts                  ← Protección de rutas /admin/*
 └── supabase/
-    └── migrations/                   ← Migraciones versionadas (Supabase CLI)
+    └── migrations/               ← Migraciones versionadas (Supabase CLI)
         └── 0001_init_schema.sql
 ```
 
@@ -250,7 +262,8 @@ create index products_search_idx on products using gin (
 
 Query de búsqueda correspondiente:
 ```sql
-select * from products
+select id, name, slug, description, price, stock, image_url
+from products
 where to_tsvector('spanish',
     public.immutable_unaccent(coalesce(name,'')) || ' ' ||
     public.immutable_unaccent(coalesce(description,'')))
@@ -282,6 +295,25 @@ Métodos de `payment_method`: `whatsapp` | `mercadopago` | `cash`
 4. Admin ve el pedido en el panel en tiempo real (Supabase Realtime)
 5. Admin contacta al cliente por WhatsApp para confirmar
 6. Admin cambia el estado del pedido desde el panel
+
+```
+Cliente (browser)     POST /api/orders      Supabase DB        Admin Panel
+       │                    │                    │                   │
+       │── CheckoutForm ────▶                    │                   │
+       │   (Zod validate)   │                    │                   │
+       │                    │── upsert customer ─▶                   │
+       │                    │── INSERT order ────▶                   │
+       │                    │── INSERT order_items (snapshot) ───────▶
+       │                    │◀── { order_id, total, ... } ──────────│
+       │◀── 201 { data } ───│                    │                   │
+       │                    │              Realtime INSERT event ─────▶
+       │── abre wa.me ──────▶                    │            toast "Nuevo pedido"
+       │   (solo si 201)    │                    │                   │
+       │                    │                    │                   │
+       │           [admin gestiona desde el panel]                   │
+       │                    │                    │◀── updateStatus ──│
+       │                    │                    │── UPDATE order ───▶
+```
 
 **Flujo de pago MercadoPago (futuro):**
 1. Se crea preferencia MP desde `/api/admin/mp/preference`
@@ -322,16 +354,16 @@ Todas las tablas tienen RLS habilitado con policies `dev: full access` (`using (
 ## Clientes de Supabase
 
 ```typescript
-// src/lib/supabase/server.ts
+// lib/supabase/server.ts
 // Usar en: Server Components, Server Actions, Route Handlers
 // Maneja cookies automáticamente para SSR
 import { createServerClient } from '@supabase/ssr'
 
-// src/lib/supabase/client.ts
+// lib/supabase/client.ts
 // Usar en: Client Components (solo Realtime y casos edge)
 import { createBrowserClient } from '@supabase/ssr'
 
-// src/lib/supabase/admin.ts
+// lib/supabase/admin.ts
 // Usar en: Server Actions y Route Handlers que necesitan bypass de RLS
 // NUNCA importar en Client Components
 import { createClient } from '@supabase/supabase-js'
@@ -342,7 +374,7 @@ import { createClient } from '@supabase/supabase-js'
 
 ## Middleware de autenticación
 
-`src/middleware.ts` intercepta todas las rutas `/admin/*`. Si no hay sesión de Supabase Auth válida, redirige a `/admin/login`. Las rutas del catálogo pasan sin verificación. Corre en Edge Runtime.
+`middleware.ts` (raíz del proyecto) intercepta todas las rutas `/admin/*`. Si no hay sesión de Supabase Auth válida, redirige a `/auth/login`. Las rutas del catálogo pasan sin verificación. Corre en Edge Runtime.
 
 ---
 
@@ -368,7 +400,7 @@ const channel = supabase
 
 ## Integración WhatsApp
 
-La URL se construye en `src/lib/utils/whatsapp.ts`:
+La URL se construye en `lib/utils/whatsapp.ts`:
 
 ```typescript
 // Formato base
@@ -448,21 +480,6 @@ Supabase pausa proyectos inactivos por 7 días. El cron job en Vercel hace ping 
 
 ---
 
-## Decisiones técnicas relevantes
+## Decisiones técnicas
 
-**¿Por qué ISR y no SSR para el catálogo?**
-El catálogo es contenido relativamente estático. ISR con `revalidate: 30` permite servirlo desde el CDN de Vercel (muy rápido) y revalidarlo automáticamente o bajo demanda cuando el admin actualiza un producto. SSR puro consultaría Supabase en cada visita innecesariamente.
-
-**¿Por qué `order_items` tiene snapshot del producto?**
-Si el precio de un producto cambia después de que se realizó una compra, el historial de pedidos no debe verse afectado. Los campos `product_name`, `product_sku` y `unit_price` se copian en el momento de la compra.
-
-**¿Por qué `immutable_unaccent()` en lugar de `unaccent()` directo?**
-Postgres requiere que las funciones usadas en expresiones de índice sean `IMMUTABLE`. `unaccent()` está declarada como `STABLE` en Postgres. El wrapper `public.immutable_unaccent()` re-expone la misma función como `IMMUTABLE`, lo cual es correcto en la práctica porque los diccionarios de tildes no cambian en runtime. Es el patrón estándar para este caso.
-
-**¿Por qué el stock se libera al acreditar y no al confirmar el pedido?**
-Para integración con MercadoPago: el dinero puede quedar en revisión. El stock se descuenta definitivamente solo cuando `payment_status` cambia a `paid` via webhook, evitando descontar stock por pagos que finalmente no se acreditan.
-
-**¿Por qué tres clientes de Supabase distintos?**
-- `server.ts`: maneja cookies para mantener la sesión en SSR correctamente
-- `client.ts`: necesario para Realtime (requiere WebSocket desde el browser)
-- `admin.ts`: usa `service_role` para bypass de RLS en operaciones administrativas — nunca debe llegar al cliente
+Ver [`decisions.md`](./decisions.md) — registro completo de ADRs con contexto, decisión y consecuencias para cada decisión no obvia del proyecto.
