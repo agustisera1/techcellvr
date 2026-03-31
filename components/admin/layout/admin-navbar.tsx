@@ -91,15 +91,15 @@ export function AdminNavbar({
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="gap-2"
+            className="gap-2 hover:bg-accent"
             aria-label="Menú de usuario"
           >
-            <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+            <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
               {userLabel.slice(0, 2).toUpperCase()}
             </span>
-            <span className="hidden max-w-[10rem] truncate sm:inline">
+            <span className="hidden max-w-[10rem] truncate sm:inline text-sm">
               {userLabel}
             </span>
           </Button>

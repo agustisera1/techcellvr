@@ -20,7 +20,7 @@ export function StockAlertBanner({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-950 dark:text-amber-100",
+        "flex flex-wrap items-center justify-between gap-3 border-b border-primary/20 bg-primary/8 px-4 py-2 text-sm text-primary dark:text-primary",
         className,
       )}
       role="status"
@@ -35,7 +35,7 @@ export function StockAlertBanner({
           con stock por debajo del umbral mínimo.
         </span>
       </div>
-      <Button asChild size="sm" variant="outline" className="border-amber-600/40">
+      <Button asChild size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10">
         <Link href={stockHref}>Ver stock</Link>
       </Button>
     </div>
