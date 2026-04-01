@@ -52,6 +52,9 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
+    // TODO (feature/catalog-pages): add catalog route exclusions here, e.g.:
+    // && !request.nextUrl.pathname.startsWith("/p/")
+    // && !request.nextUrl.pathname.startsWith("/categoria/")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

@@ -93,7 +93,7 @@ export function AdminNavbar({
             type="button"
             variant="ghost"
             size="sm"
-            className="gap-2 hover:bg-accent"
+            className="gap-2 h-10 hover:bg-accent"
             aria-label="Menú de usuario"
           >
             <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

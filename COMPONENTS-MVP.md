@@ -16,7 +16,7 @@ Fuente de verdad de componentes. Referencia original: `Componentes MVP — Stock
 | [x] | `DataTable` | Wrapper genérico sobre TanStack Table. Sorting, paginación y column visibility reutilizable en todas las tablas del admin. | Client |
 | [x] | `ConfirmDialog` | Dialog de confirmación genérico para acciones destructivas (eliminar producto, cancelar pedido). | Client |
 | [x] | `StatusBadge` | Badge con color semántico según estado: `pending` → amber, `confirmed` → blue, `delivered` → green, `cancelled` → red. | Client |
-| [ ] | `ImageUploader` | Drag & drop + preview. Comprime imágenes a ~200-300 KB antes de subir al bucket `product-images` de Supabase Storage. Soporta múltiples imágenes con reordenamiento. | Client |
+| [x] | `ImageUploader` | Drag & drop + preview. Comprime imágenes a ~200-300 KB antes de subir al bucket `product-images` de Supabase Storage. Soporta múltiples imágenes con reordenamiento. | Client |
 | [x] | `EmptyState` | Placeholder visual para tablas y listas vacías. Recibe título, descripción y acción opcional. | Client |
 
 ## UI base (`components/ui/`)
@@ -42,11 +42,11 @@ Button, Input, Label, Select, Textarea, Badge, Separator, Skeleton, Tooltip, Dia
 
 | Estado | Componente | Responsabilidad | Tipo |
 |--------|-----------|----------------|------|
-| [ ] | `ProductsTable` | TanStack Table con columnas: imagen, nombre, SKU, categoría, precio, stock (con indicador de alerta), estado activo, acciones. Paginación client-side sobre datos traídos del server. | Client |
-| [ ] | `ProductForm` | Formulario de alta/edición en Sheet lateral. Campos: nombre, slug (auto-generado), descripción, categoría, precio, `compare_at_price`, stock inicial, umbral mínimo, activo, destacado. | Client |
-| [ ] | `ProductFilters` | Barra de filtros sobre la tabla: búsqueda por nombre/SKU, filtro por categoría, por estado (activo/inactivo), por stock bajo. | Client |
-| [ ] | `DiscountForm` | Form inline para agregar/editar descuento a un producto. Campos: porcentaje, motivo, fechas de vigencia opcionales. | Client |
-| [ ] | `PriceHistoryDrawer` | Sheet lateral con el historial de cambios de precio de un producto. Tabla simple con fecha, precio anterior y nuevo. Poblado automáticamente por trigger de DB. | Client · (v2) |
+| [x] | `ProductsTable` | TanStack Table con columnas: imagen, nombre, SKU, categoría, precio, stock (con indicador de alerta), estado activo, acciones. Paginación client-side sobre datos traídos del server. | Client |
+| [x] | `ProductForm` | Formulario de alta/edición en Sheet lateral. Campos: nombre, slug (auto-generado), descripción, categoría, precio, `compare_at_price`, stock inicial, umbral mínimo, activo, destacado. | Client |
+| [x] | `ProductFilters` | Barra de filtros sobre la tabla: búsqueda por nombre/SKU, filtro por categoría, por estado (activo/inactivo), por stock bajo. | Client |
+| [x] | `DiscountForm` | Form inline para agregar/editar descuento a un producto. Campos: porcentaje, motivo, fechas de vigencia opcionales. | Client |
+| [x] | `PriceHistoryDrawer` | Sheet lateral con el historial de cambios de precio de un producto. Tabla simple con fecha, precio anterior y nuevo. Poblado automáticamente por trigger de DB. | Client · (v2) |
 
 ---
 

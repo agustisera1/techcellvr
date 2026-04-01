@@ -12,7 +12,7 @@ export const createProductSchema = z.object({
   category_id: z.string().uuid().nullable().optional(),
   sku: z.string().nullable().optional(),
   price: z
-    .number({ invalid_type_error: 'El precio debe ser un número' })
+    .number({ error: 'El precio debe ser un número' })
     .min(0, 'El precio no puede ser negativo'),
   compare_at_price: z
     .number()
@@ -20,7 +20,7 @@ export const createProductSchema = z.object({
     .nullable()
     .optional(),
   stock: z
-    .number({ invalid_type_error: 'El stock debe ser un número' })
+    .number({ error: 'El stock debe ser un número entero' })
     .int('El stock debe ser un entero')
     .min(0, 'El stock no puede ser negativo')
     .default(0),
