@@ -53,10 +53,12 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
   const router = useRouter()
 
   // Filter state
-  const [search, setSearch] = useState('')
-  const [categoryId, setCategoryId] = useState('all')
-  const [status, setStatus] = useState<StatusFilter>('all')
-  const [lowStock, setLowStock] = useState(false)
+  const [filters, setFilters] = useState({
+    search: '',
+    categoryId: 'all',
+    status: 'all' as StatusFilter,
+    lowStock: false,
+  })
 
   // Sheet state
   const [sheet, setSheet] = useState<SheetState>({ type: 'none' })
@@ -94,6 +96,7 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
   // ─── Filtered data ──────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
+    const { search, categoryId, status, lowStock } = filters
     const q = search.toLowerCase()
     return products.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q) && !(p.sku ?? '').toLowerCase().includes(q)) {
@@ -105,7 +108,7 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
       if (lowStock && p.stock > (p.stock_min_threshold ?? 0)) return false
       return true
     })
-  }, [products, search, categoryId, status, lowStock])
+  }, [products, filters])
 
   // ─── Columns ─────────────────────────────────────────────────────────────────
 
@@ -152,13 +155,25 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
         id: 'price',
         header: 'Precio',
         cell: ({ row }) => {
-          const { price, compare_at_price } = row.original
+          const { price, compare_at_price, active_discount_percentage } = row.original
+          const discountedPrice = active_discount_percentage != null
+            ? price * (1 - active_discount_percentage / 100)
+            : null
+          const effectivePrice = discountedPrice ?? price
+          const struckPrice = discountedPrice != null ? price : compare_at_price
           return (
             <div className="text-sm">
-              <p className="font-medium">{formatARS(price)}</p>
-              {compare_at_price != null && (
+              <div className="flex items-center gap-1.5">
+                <p className="font-medium">{formatARS(effectivePrice)}</p>
+                {active_discount_percentage != null && (
+                  <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                    -{active_discount_percentage}%
+                  </span>
+                )}
+              </div>
+              {struckPrice != null && (
                 <p className="text-xs text-muted-foreground line-through">
-                  {formatARS(compare_at_price)}
+                  {formatARS(struckPrice)}
                 </p>
               )}
             </div>
@@ -251,27 +266,26 @@ export function ProductsTable({ products, categories }: ProductsTableProps) {
           <p className="text-sm text-muted-foreground">{products.length} productos en total</p>
         </div>
         <Button onClick={() => setSheet({ type: 'create' })}>
-          <Plus className="mr-2 size-4" />
           Nuevo producto
         </Button>
       </div>
 
       {/* Filters */}
       <ProductFilters
-        search={search}
-        onSearchChange={(v) => setSearch(v)}
-        categoryId={categoryId}
-        onCategoryChange={(v) => setCategoryId(v)}
-        status={status}
-        onStatusChange={(v) => setStatus(v)}
-        lowStock={lowStock}
-        onLowStockChange={(v) => setLowStock(v)}
+        search={filters.search}
+        onSearchChange={(v) => setFilters((f) => ({ ...f, search: v }))}
+        categoryId={filters.categoryId}
+        onCategoryChange={(v) => setFilters((f) => ({ ...f, categoryId: v }))}
+        status={filters.status}
+        onStatusChange={(v) => setFilters((f) => ({ ...f, status: v }))}
+        lowStock={filters.lowStock}
+        onLowStockChange={(v) => setFilters((f) => ({ ...f, lowStock: v }))}
         categories={categories}
       />
 
       {/* Table — key resets pagination when filters change */}
       <DataTable
-        key={`${search}-${categoryId}-${status}-${lowStock}`}
+        key={`${filters.search}-${filters.categoryId}-${filters.status}-${filters.lowStock}`}
         columns={columns}
         data={filtered}
         pageSize={PAGE_SIZE}

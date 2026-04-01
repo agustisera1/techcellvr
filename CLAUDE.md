@@ -59,6 +59,16 @@ import { createAdminClient } from '@/lib/supabase/admin' // Bypass RLS — solo 
 - Formatters de precio y fecha en `lib/utils/format.ts`. Moneda: ARS.
 - Imports siempre con alias `@/*`. Nunca rutas relativas que suban más de un nivel (`../../`).
 
+### Manejo de estado en React
+
+- **No guardar en estado lo que se puede derivar.** Si un valor se puede calcular a partir de props o de otro estado, calcularlo en el render (o con `useMemo`). Nunca duplicarlo en `useState`.
+- **Colocar el estado lo más cerca posible de donde se usa.** Si solo un componente lo necesita, no subirlo sin razón. Solo subir (`lift up`) cuando dos o más componentes lo comparten.
+- **Un objeto de estado para filtros relacionados.** Si hay 3+ `useState` que siempre cambian juntos o representan un mismo concepto (ej. filtros de tabla), consolidarlos en un único objeto.
+- **`useReducer` para estado complejo con múltiples transiciones.** Cuando un componente tiene muchos `useState` con lógica de actualización entrelazada, `useReducer` centraliza las transiciones y facilita el testing.
+- **`key` prop para resetear estado.** Cambiar el `key` de un componente lo destruye y recrea desde cero — es el mecanismo correcto para resetear estado interno sin lógica manual.
+- **No reflejar props en estado.** Inicializar estado desde una prop solo cuando la prop es un valor inicial (`initialX`). De lo contrario el estado queda desincronizado con la prop.
+- **Discriminated unions para estados de UI** — ya definido en la sección TypeScript.
+
 ### TypeScript clean code
 
 - **Preferir `unknown` sobre `any`**. Si `any` es inevitable, dejar un comentario `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- <razón>`.
@@ -179,6 +189,18 @@ Esto unifica el manejo de errores en formularios y evita `try/catch` disperso en
 - Retornar envelope JSON consistente: `{ data: T }` en éxito, `{ error: string }` en fallo.
 - Códigos HTTP correctos: `400` input inválido, `401` no autenticado, `403` no autorizado, `404` no encontrado, `500` error inesperado.
 - Delegar toda lógica de negocio a servicios en `lib/` — los handlers solo coordinan.
+
+## Regla: explorar la API antes de implementar un componente
+
+Antes de usar cualquier componente de terceros (shadcn, Radix, TanStack, react-day-picker, etc.) **leer su implementación y API en el proyecto**:
+
+1. Leer el archivo en `components/ui/` para entender cómo está configurado y qué props acepta.
+2. Verificar qué CSS variables o tokens usa (ej. `--cell-size`, `--radix-popover-trigger-width`).
+3. Probar que la integración visual se ve correcta **antes de commitear** — no asumir que los defaults son suficientes.
+
+Esto aplica especialmente a componentes complejos: `Calendar`, `DataTable`, `Sheet`, `Popover`, `Select`. Un componente que compila sin errores TypeScript puede igualmente verse roto en el navegador.
+
+---
 
 ## Componentes
 

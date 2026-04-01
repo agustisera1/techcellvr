@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -25,14 +25,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ImageUploader } from '@/components/shared/ImageUploader'
+import { FormField as Field } from '@/components/shared/form-field'
 import { z } from 'zod'
 import { createProductSchema } from '@/lib/validations/products'
-
-type ProductFormValues = z.input<typeof createProductSchema>
 import { generateSlug } from '@/lib/utils/slug'
 import { createProductAction, updateProductAction } from '@/app/admin/products/actions'
 import type { CategoryOption } from '@/lib/categories-service'
 import type { ProductWithCategory } from '@/lib/products-service'
+
+type ProductFormValues = z.input<typeof createProductSchema>
 
 const NO_CATEGORY = '__none__'
 
@@ -42,10 +43,10 @@ interface ProductFormProps {
   onClose: () => void
 }
 
+
 export function ProductForm({ product, categories, onClose }: ProductFormProps) {
   const router = useRouter()
   const isEdit = !!product
-  const [slugLocked, setSlugLocked] = useState(isEdit)
 
   const {
     register,
@@ -62,7 +63,6 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
           slug: product.slug,
           description: product.description ?? '',
           category_id: product.category_id ?? undefined,
-          sku: product.sku ?? '',
           price: product.price,
           compare_at_price: product.compare_at_price ?? undefined,
           stock: product.stock,
@@ -81,10 +81,10 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
   const nameValue = watch('name')
 
   useEffect(() => {
-    if (!slugLocked && nameValue) {
+    if (!isEdit && nameValue) {
       setValue('slug', generateSlug(nameValue), { shouldValidate: false })
     }
-  }, [nameValue, slugLocked, setValue])
+  }, [nameValue, isEdit, setValue])
 
   const onSubmit = async (data: ProductFormValues) => {
     const result = isEdit
@@ -103,49 +103,27 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
   return (
     <>
       <SheetHeader className="px-6 pt-6">
-        <SheetTitle>{isEdit ? 'Editar producto' : 'Nuevo producto'}</SheetTitle>
+        <SheetTitle className="text-xl">
+          {isEdit ? 'Editar producto' : 'Nuevo producto'}
+        </SheetTitle>
+        {!isEdit && (
+          <p className="text-sm text-muted-foreground">
+            Completá los datos del producto. Podés agregar la imagen una vez creado.
+          </p>
+        )}
       </SheetHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <form id="product-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Name */}
-          <div className="space-y-1.5">
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <form id="product-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+          {/* Nombre */}
+          <Field error={errors.name?.message}>
             <Label htmlFor="name">Nombre *</Label>
-            <Input id="name" {...register('name')} />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+            <Input id="name" placeholder="Ej: iPhone 15 Pro 256GB" {...register('name')} />
+          </Field>
 
-          {/* Slug */}
-          <div className="space-y-1.5">
-            <Label htmlFor="slug">Slug *</Label>
-            <Input
-              id="slug"
-              {...register('slug')}
-              onChange={(e) => {
-                setSlugLocked(true)
-                setValue('slug', e.target.value, { shouldValidate: true })
-              }}
-            />
-            {!slugLocked && (
-              <p className="text-xs text-muted-foreground">
-                Auto-generado desde el nombre. Editá para personalizar.
-              </p>
-            )}
-            {errors.slug && (
-              <p className="text-xs text-destructive">{errors.slug.message}</p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="description">Descripción</Label>
-            <Textarea id="description" rows={3} {...register('description')} />
-          </div>
-
-          {/* Category */}
-          <div className="space-y-1.5">
+          {/* Categoría */}
+          <Field>
             <Label>Categoría</Label>
             <Controller
               name="category_id"
@@ -169,100 +147,112 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
                 </Select>
               )}
             />
-          </div>
+          </Field>
 
-          {/* SKU */}
-          <div className="space-y-1.5">
-            <Label htmlFor="sku">SKU</Label>
-            <Input
-              id="sku"
-              {...register('sku', {
-                setValueAs: (v: string) => v === '' ? null : v,
-              })}
-            />
-          </div>
-
-          {/* Price + Compare price */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          {/* Precio + Precio tachado */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field error={errors.price?.message}>
               <Label htmlFor="price">Precio *</Label>
               <Input
                 id="price"
                 type="number"
                 step="1"
                 min="0"
+                placeholder="0"
                 {...register('price', { valueAsNumber: true })}
               />
-              {errors.price && (
-                <p className="text-xs text-destructive">{errors.price.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
+            </Field>
+            <Field hint="Precio original para mostrar tachado.">
               <Label htmlFor="compare_at_price">Precio tachado</Label>
               <Input
                 id="compare_at_price"
                 type="number"
                 step="1"
                 min="0"
+                placeholder="0"
                 {...register('compare_at_price', {
-                  setValueAs: (v: string) =>
-                    v === '' || v === null ? null : Number(v),
+                  setValueAs: (v: string) => (v === '' || v === null ? null : Number(v)),
                 })}
               />
-            </div>
+            </Field>
           </div>
 
-          {/* Stock (create) + Threshold */}
-          <div className="grid grid-cols-2 gap-3">
-            {!isEdit && (
-              <div className="space-y-1.5">
-                <Label htmlFor="stock">Stock inicial</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  step="1"
-                  min="0"
-                  {...register('stock', { valueAsNumber: true })}
-                />
-                {errors.stock && (
-                  <p className="text-xs text-destructive">{errors.stock.message}</p>
-                )}
-              </div>
-            )}
-            <div className="space-y-1.5">
+          {/* Stock inicial — solo en creación */}
+          {!isEdit && (
+            <Field
+              error={errors.stock?.message}
+              hint="Unidades disponibles al crear el producto."
+            >
+              <Label htmlFor="stock">Stock inicial</Label>
+              <Input
+                id="stock"
+                type="number"
+                step="1"
+                min="0"
+                placeholder="0"
+                {...register('stock', { valueAsNumber: true })}
+              />
+            </Field>
+          )}
+
+          {/* Umbral mínimo + Slug */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field hint={isEdit ? 'El stock se ajusta desde el módulo de Stock.' : 'Alerta cuando el stock baje de este valor.'}>
               <Label htmlFor="stock_min_threshold">Umbral mínimo</Label>
               <Input
                 id="stock_min_threshold"
                 type="number"
                 step="1"
                 min="0"
+                placeholder="0"
                 {...register('stock_min_threshold', { valueAsNumber: true })}
               />
-            </div>
+            </Field>
+            <Field
+              hint="Generado desde el nombre · se usa en la URL del producto."
+              error={errors.slug?.message}
+            >
+              <Label htmlFor="slug">Slug</Label>
+              <Input
+                id="slug"
+                disabled
+                className="disabled:cursor-default disabled:opacity-60"
+                {...register('slug')}
+              />
+            </Field>
           </div>
 
-          {isEdit && (
-            <p className="text-xs text-muted-foreground">
-              El stock se ajusta desde el módulo de{' '}
-              <span className="font-medium">Stock</span>.
-            </p>
-          )}
+          {/* Descripción */}
+          <Field>
+            <Label htmlFor="description">Descripción</Label>
+            <Textarea
+              id="description"
+              rows={3}
+              placeholder="Describí el producto: características, compatibilidades, etc."
+              {...register('description')}
+            />
+          </Field>
 
-          {/* Active + Featured */}
-          <div className="flex items-center gap-6">
+          {/* Activo + Destacado */}
+          <div className="grid grid-cols-2 gap-4">
             <Controller
               name="active"
               control={control}
               render={({ field }) => (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="active"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                  <Label htmlFor="active" className="cursor-pointer">
-                    Activo
-                  </Label>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="active"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <Label htmlFor="active" className="cursor-pointer">
+                      Activo
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Solo los activos son visibles en el catálogo.
+                  </p>
                 </div>
               )}
             />
@@ -270,34 +260,40 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
               name="featured"
               control={control}
               render={({ field }) => (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="featured"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                  <Label htmlFor="featured" className="cursor-pointer">
-                    Destacado
-                  </Label>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="featured"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <Label htmlFor="featured" className="cursor-pointer">
+                      Destacado
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Aparece en la sección principal del catálogo.
+                  </p>
                 </div>
               )}
             />
           </div>
 
-          {/* Image (edit only) */}
+          {/* Imagen — solo en edición */}
           {isEdit && (
             <>
               <Separator />
-              <div className="space-y-1.5">
+              <Field>
                 <Label>Imagen del producto</Label>
                 <ImageUploader
                   productId={product.id}
                   currentUrl={product.image_url}
                   onUploadComplete={() => router.refresh()}
                 />
-              </div>
+              </Field>
             </>
           )}
+
         </form>
       </div>
 
@@ -308,11 +304,7 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
           </Button>
         </SheetClose>
         <Button type="submit" form="product-form" disabled={isSubmitting}>
-          {isSubmitting
-            ? 'Guardando...'
-            : isEdit
-              ? 'Guardar cambios'
-              : 'Crear producto'}
+          {isSubmitting ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear producto'}
         </Button>
       </SheetFooter>
     </>

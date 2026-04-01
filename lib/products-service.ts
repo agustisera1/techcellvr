@@ -12,6 +12,7 @@ export type ProductWithCategory = Readonly<
   Tables<'products'> & {
     category_name: string | null
     image_url: string | null
+    active_discount_percentage: number | null
   }
 >
 
@@ -29,7 +30,8 @@ export async function getProducts(): Promise<ProductWithCategory[]> {
        price, compare_at_price, stock, stock_min_threshold,
        active, featured, created_at, updated_at,
        categories (name),
-       product_images (url, is_primary)`,
+       product_images (url, is_primary),
+       discounts (percentage, active)`,
     )
     .order('created_at', { ascending: false })
 
@@ -41,6 +43,11 @@ export async function getProducts(): Promise<ProductWithCategory[]> {
       url: string
       is_primary: boolean
     }>
+    const discounts = (p.discounts ?? []) as Array<{
+      percentage: number
+      active: boolean
+    }>
+    const activeDiscount = discounts.find((d) => d.active) ?? null
     return {
       id: p.id,
       category_id: p.category_id,
@@ -59,6 +66,7 @@ export async function getProducts(): Promise<ProductWithCategory[]> {
       category_name: (p.categories as { name: string } | null)?.name ?? null,
       image_url:
         images.find((img) => img.is_primary)?.url ?? images[0]?.url ?? null,
+      active_discount_percentage: activeDiscount?.percentage ?? null,
     }
   })
 }
