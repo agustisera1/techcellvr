@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+
 export function formatARS(value: number): string {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -8,11 +10,10 @@ export function formatARS(value: number): string {
 
 export function formatDateTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("es-AR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
+    // date-fns produces consistent output across Node.js and browser,
+    // avoiding hydration mismatches caused by Intl locale differences.
+    return format(new Date(iso), 'dd/MM/yy, HH:mm')
   } catch {
-    return iso;
+    return iso
   }
 }
