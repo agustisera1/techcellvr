@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { redirect, usePathname } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const routeTitles: Record<string, string> = {
   "/admin": "Dashboard",
@@ -41,18 +42,21 @@ function breadcrumbFromPath(pathname: string): { href: string; label: string }[]
 interface AdminNavbarProps {
   businessName: string;
   userLabel?: string;
-  onLogout?: () => void;
   className?: string;
 }
 
 export function AdminNavbar({
   businessName,
   userLabel = "Administrador",
-  onLogout,
   className,
 }: AdminNavbarProps) {
   const pathname = usePathname() ?? "/admin";
   const crumbs = breadcrumbFromPath(pathname);
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    redirect("/auth/login");
+  };
 
   return (
     <header
@@ -111,8 +115,7 @@ export function AdminNavbar({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="gap-2"
-            onSelect={() => onLogout?.()}
-            disabled={!onLogout}
+            onSelect={handleLogout}
           >
             <LogOut className="size-4" />
             Cerrar sesión

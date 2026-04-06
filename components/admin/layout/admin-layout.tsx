@@ -18,7 +18,7 @@ export async function AdminLayout({ children }: AdminLayoutProps) {
       <AdminSidebar businessName={BUSINESS_NAME} />
       <div className="flex min-w-0 flex-1 flex-col">
         <StockAlertBanner lowStockCount={lowStockCount} />
-        <AdminNavbar businessName={BUSINESS_NAME} />
+        <AdminNavbar businessName={BUSINESS_NAME}/>
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
     </div>
